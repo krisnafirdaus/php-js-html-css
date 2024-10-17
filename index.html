@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do List Application</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        #todo-form {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        #todo-input {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        #todo-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .todo-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #f0f0f0;
+        }
+        .todo-item.completed {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+    <h1>To-Do List Application</h1>
+    <form id="todo-form">
+        <input type="text" id="todo-input" placeholder="Enter a new task" required>
+        <button type="submit">Add Task</button>
+    </form>
+    <ul id="todo-list"></ul>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('todo-form');
+            const input = document.getElementById('todo-input');
+            const todoList = document.getElementById('todo-list');
+
+            // Load tasks from server
+            loadTasks();
+
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const task = input.value.trim();
+                if (task) {
+                    addTask(task);
+                    input.value = '';
+                }
+            });
+
+            function addTask(task) {
+                fetch('add_task.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'task=' + encodeURIComponent(task)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        createTaskElement(data.id, task);
+                    }
+                });
+            }
+
+            function createTaskElement(id, task) {
+                const li = document.createElement('li');
+                li.className = 'todo-item';
+                li.innerHTML = `
+                    <span>${task}</span>
+                    <div>
+                        <button onclick="toggleComplete(${id}, this)">Complete</button>
+                        <button onclick="deleteTask(${id}, this)">Delete</button>
+                    </div>
+                `;
+                todoList.appendChild(li);
+            }
+
+            function loadTasks() {
+                fetch('get_tasks.php')
+                .then(response => response.json())
+                .then(tasks => {
+                    tasks.forEach(task => {
+                        createTaskElement(task.id, task.task);
+                        if (task.completed) {
+                            const li = todoList.lastElementChild;
+                            li.classList.add('completed');
+                            li.querySelector('button').textContent = 'Undo';
+                        }
+                    });
+                });
+            }
+        });
+
+        function toggleComplete(id, button) {
+            fetch('toggle_task.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'id=' + id
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const li = button.closest('li');
+                    li.classList.toggle('completed');
+                    button.textContent = li.classList.contains('completed') ? 'Undo' : 'Complete';
+                }
+            });
+        }
+
+        function deleteTask(id, button) {
+            fetch('delete_task.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'id=' + id
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const li = button.closest('li');
+                    li.remove();
+                }
+            });
+        }
+    </script>
+</body>
+</html>
